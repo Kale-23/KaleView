@@ -37,7 +37,8 @@ def make_blast_database(fastas: str, type: str) -> None:
     # run makeblastdb for each file in directory
     for entry in os.scandir(fastas):
         if entry.is_file() and entry.name.endswith(FASTA_ENDS):
-                subprocess.run(f"makeblastdb -in {os.getcwd()}/{entry.path} -parse_seqids -dbtype {type}")
+                command = f"makeblastdb -in {entry.path} -parse_seqids -dbtype {type}".split(" ")
+                subprocess.run(command)
 
     # make a directory to put output
     bdb = f"{os.getcwd()}/blastdb"
@@ -50,7 +51,7 @@ def make_blast_database(fastas: str, type: str) -> None:
             if not entry.name.endswith(FASTA_ENDS):
                 os.rename(entry.path, f"{bdb}/{entry.name}")
                 continue
-            subprocess.run(f"cp ./{entry.path} {bdb}/")
+            subprocess.run(f"cp ./{entry.path} {bdb}/".split(" "))
 
 
     
