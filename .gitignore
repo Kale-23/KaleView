@@ -2,3 +2,7 @@
 .DS_Store
 testing
 env
+blastdb/
+blastout/
+fastas/
+ES_alpha_slime.fasta

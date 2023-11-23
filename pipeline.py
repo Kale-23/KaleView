@@ -109,20 +109,21 @@ def run_blast(query: str, qtype: str, ftype: str, threads: int, maxseqs: int) ->
     bdb = f"{os.getcwd()}/blastdb"
     for entry in os.scandir(bdb):
         if entry.is_file() and entry.name.endswith(FASTA_ENDS):
+            print(f"blasting {entry.name}")
 
             # run and save blast output (XML format) to new file ending with "_blastout"
             blast_cmd = blast_type + f" -query {query} -db {entry.path} -outfmt 5 -max_target_seqs {maxseqs} -evalue 0.00001 -num_threads {threads}"
             result = subprocess.run(blast_cmd.split(" "), stdout=subprocess.PIPE)
             new_outfile = remove_extension(entry.name) + "_blastout"
             with open(new_outfile, 'w') as file:
-                file.write(result.stderr.decode("ascii"))
+                file.write(result.stdout.decode("ascii"))
     
     # make a directory to put output
     blastout = f"{os.getcwd()}/blastout"
     os.makedirs(blastout, exist_ok=True)
 
     # move file to blastout directory
-    for entry in os.scandir(blastout):
+    for entry in os.scandir(os.getcwd()):
         if entry.is_file() and entry.name.endswith("_blastout"):
             os.rename(entry.path, f"{blastout}/{entry.name}")
 
@@ -149,5 +150,5 @@ parser.add_argument("-threads", type=int, default=1, help="number of threads sub
 
 args = parser.parse_args()
 
-#run_make_blast_database(args.fastas, args.ftype)
+run_make_blast_database(args.fastas, args.ftype)
 run_blast(args.q, args.qtype, args.ftype, args.threads, args.max_targets)
