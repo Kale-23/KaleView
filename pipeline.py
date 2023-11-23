@@ -55,16 +55,28 @@ def run_blast(query: str, qtype: str, ftype: str, threads: int, maxseqs: int) ->
 
     # determine blast type to use (blastn, blastp, blastx, tblastn)
     blast_type= ""
+
+    # python 3.10+ and I don't feel like dealing with environments
+    #types = (qtype, ftype)
+    #match types:
+    #    case ("nucl", "nucl"):
+    #        blast_type += "blastn"
+    #    case("nucl", "prot"):
+    #        blast_type += "blastx"
+    #    case("prot", "nucl"):
+    #        blast_type += "tblastn"
+    #    case("prot", "prot"):
+    #        blast_type += "blastp"
+
     types = (qtype, ftype)
-    match types:
-        case ("nucl", "nucl"):
-            blast_type += "blastn"
-        case("nucl", "prot"):
-            blast_type += "blastx"
-        case("prot", "nucl"):
-            blast_type += "tblastn"
-        case("prot", "prot"):
-            blast_type += "blastp"
+    if types == ("nucl", "nucl"):
+        blast_type += "blastn"
+    elif types == ("nucl", "prot"):
+        blast_type += "blastx"
+    elif types == ("prot", "nucl"):
+        blast_type += "tblastn"
+    elif types == ("prot", "prot"):
+        blast_type += "blastp"
 
     for entry in os.scandir(f"{os.getcwd()}/blastdb"):
         if entry.is_file() and entry.name.endswith(FASTA_ENDS):
@@ -94,5 +106,5 @@ parser.add_argument("-threads", type=int, default=1, help="number of threads sub
 
 args = parser.parse_args()
 
-run_make_blast_database(args.fastas, args.ftype)
+#run_make_blast_database(args.fastas, args.ftype)
 run_blast(args.q, args.qtype, args.ftype, args.threads, args.max_targets)
