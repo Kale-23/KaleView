@@ -11,7 +11,35 @@ import Bio.SeqRecord
 # valid fasta endings
 FASTA_ENDS = (".fasta",".fa",".fas")
 # valid sequence types
-FASTA_TYPES = ('nucl', 'prot')
+FASTA_TYPES = ('nucl','prot')
+
+def add_to_name(file: str, addition: str) -> str:
+    """adds extension to original filename before last "." in name
+
+    Args:
+        file (str): file name, usually DirEntry.name
+        addition (str): addition to add
+
+    Returns:
+        str: new filename output
+    """
+
+    last_dot_index = file.rfind('.')
+    outfile = file[:last_dot_index] + addition + file[last_dot_index:]
+    return outfile
+
+def remove_extension(file: str) -> str:
+    """removes extension after final "."
+
+    Args:
+        file (str): name of file
+
+    Returns:
+        str: file without everything after and including the last "."
+    """
+    last_dot_index = file.rfind('.')
+    outfile = file[:last_dot_index]
+    return outfile
 
 
 def run_make_blast_database(fastas: str, type: str) -> None:
@@ -30,8 +58,7 @@ def run_make_blast_database(fastas: str, type: str) -> None:
 
     # make a directory to put output
     bdb = f"{os.getcwd()}/blastdb"
-    if not os.path.exists(bdb):
-        os.mkdir(bdb)
+    os.makedirs(bdb, exist_ok=True)
 
     # files to blastdb: copy if fasta, move if blastdb files
     for entry in os.scandir(fastas):
@@ -78,11 +105,27 @@ def run_blast(query: str, qtype: str, ftype: str, threads: int, maxseqs: int) ->
     elif types == ("prot", "prot"):
         blast_type += "blastp"
 
-    for entry in os.scandir(f"{os.getcwd()}/blastdb"):
+    # for every fasta file within the blast database
+    bdb = f"{os.getcwd()}/blastdb"
+    for entry in os.scandir(bdb):
         if entry.is_file() and entry.name.endswith(FASTA_ENDS):
+
+            # run and save blast output (XML format) to new file ending with "_blastout"
             blast_cmd = blast_type + f" -query {query} -db {entry.path} -outfmt 5 -max_target_seqs {maxseqs} -evalue 0.00001 -num_threads {threads}"
-            subprocess.run(blast_cmd.split(" "))
-    return
+            result = subprocess.run(blast_cmd.split(" "), stdout=subprocess.PIPE)
+            new_outfile = remove_extension(entry.name) + "_blastout"
+            with open(new_outfile, 'w') as file:
+                file.write(result.stderr.decode("ascii"))
+    
+    # make a directory to put output
+    blastout = f"{os.getcwd()}/blastout"
+    os.makedirs(blastout, exist_ok=True)
+
+    # move file to blastout directory
+    for entry in os.scandir(blastout):
+        if entry.is_file() and entry.name.endswith("_blastout"):
+            os.rename(entry.path, f"{blastout}/{entry.name}")
+
 
 def run_macse():
     return
