@@ -4,9 +4,9 @@ import os
 import argparse
 import subprocess
 
-import Bio.Blast.Applications
 import Bio.SeqIO
 import Bio.SeqRecord
+from Bio.Blast import NCBIXML
 
 # valid fasta endings
 FASTA_ENDS = (".fasta",".fa",".fas")
@@ -127,6 +127,20 @@ def run_blast(query: str, qtype: str, ftype: str, threads: int, maxseqs: int) ->
         if entry.is_file() and entry.name.endswith("_blastout"):
             os.rename(entry.path, f"{blastout}/{entry.name}")
 
+def create_fasta() -> None:
+    """takes the xml outputs of run_blast(), concatinates the sequences into fastas, then concatentates the fastas into one overall fasta for alignment
+    """
+
+    # for each blast output xml
+    blastout = f"{os.getcwd()}/blastout"
+    for entry in os.scandir(blastout):
+        if entry.is_file() and entry.name.endswith("_blastout"):
+            with open(entry.path, "r") as xml_handle:
+                for record in NCBIXML.parse(xml_handle):
+                    for hit in record:
+                        print(hit)
+
+
 
 def run_macse():
     return
@@ -150,5 +164,6 @@ parser.add_argument("-threads", type=int, default=1, help="number of threads sub
 
 args = parser.parse_args()
 
-run_make_blast_database(args.fastas, args.ftype)
-run_blast(args.q, args.qtype, args.ftype, args.threads, args.max_targets)
+#run_make_blast_database(args.fastas, args.ftype)
+#run_blast(args.q, args.qtype, args.ftype, args.threads, args.max_targets)
+create_fasta()
