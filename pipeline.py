@@ -1,5 +1,4 @@
 #! /usr/bin/env python3
-
 import os
 import argparse
 import subprocess
@@ -135,21 +134,23 @@ def find_fastas(ids: Union[list[str], set[str], tuple[str]]) -> None:
         ids (Union[list[str], set[str], tuple[str]]): collection of sequence headers
     """
 
+    unused_ids = list(ids)
     used_ids = []
     with open("alignment_seqs.fasta", "w") as fasta_out:
-        for entry in os.scandir(args.f):
+        for entry in os.scandir(args.fastas):
                 if not entry.is_file() or not entry.name.endswith(FASTA_ENDS):
                             continue
                 for record in SeqIO.parse(entry.path, "fasta"):
 
                     if record.id in ids:
                         SeqIO.write(record, fasta_out, "fasta")
-                        ids.remove(record.id)
+                        unused_ids.remove(record.id)
                         used_ids.append(record.id)
                     elif record.id in used_ids:
                         print(f"duplicate sequence with header {record.id} ignored")
-                    else:
-                        print(f"no sequence with header {record.id} found")
+    if len(unused_ids) > 0:
+        for item in used_ids:
+            print(f"No sequence found for header {item}")
 
 def create_fasta() -> None:
     """takes the xml outputs of run_blast(), concatinates the sequences into fastas, then concatentates the fastas into one overall fasta for alignment
@@ -195,6 +196,6 @@ parser.add_argument("-threads", type=int, default=1, help="number of threads sub
 
 args = parser.parse_args()
 
-run_make_blast_database(args.fastas, args.ftype)
+#run_make_blast_database(args.fastas, args.ftype)
 run_blast(args.q, args.qtype, args.ftype, args.threads, args.max_targets)
 create_fasta()

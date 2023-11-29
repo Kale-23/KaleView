@@ -1,0 +1,14 @@
+#! /bin/bash
+
+#SBATCH --ntasks=1
+
+## default 24 threads.
+##SBATCH --cpus-per-task=2
+
+## More than 128G
+##SBATCH --mem=512000
+
+#SBATCH --job-name="blast"
+#SBATCH --output=blast-%j.log
+#BATCH --exclude=node117,node118
+bash $@
