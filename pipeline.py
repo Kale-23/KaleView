@@ -3,15 +3,16 @@
 import os
 import argparse
 import subprocess
+from typing import Union
 
-import Bio.SeqIO
-import Bio.SeqRecord
 from Bio.Blast import NCBIXML
+from Bio import SearchIO
+from Bio import SeqIO
 
 # valid fasta endings
 FASTA_ENDS = (".fasta",".fa",".fas")
 # valid sequence types
-FASTA_TYPES = ('nucl','prot')
+FASTA_TYPES = ('nucl','prot') 
 
 def add_to_name(file: str, addition: str) -> str:
     """adds extension to original filename before last "." in name
@@ -127,18 +128,48 @@ def run_blast(query: str, qtype: str, ftype: str, threads: int, maxseqs: int) ->
         if entry.is_file() and entry.name.endswith("_blastout"):
             os.rename(entry.path, f"{blastout}/{entry.name}")
 
+def find_fastas(ids: Union[list[str], set[str], tuple[str]]) -> None:
+    """takes in a collection of sequence headers, and generates a new fasta file with all sequences associated with the headers
+
+    Args:
+        ids (Union[list[str], set[str], tuple[str]]): collection of sequence headers
+    """
+
+    used_ids = []
+    with open("alignment_seqs.fasta", "w") as fasta_out:
+        for entry in os.scandir(args.f):
+                if not entry.is_file() or not entry.name.endswith(FASTA_ENDS):
+                            continue
+                for record in SeqIO.parse(entry.path, "fasta"):
+
+                    if record.id in ids:
+                        SeqIO.write(record, fasta_out, "fasta")
+                        ids.remove(record.id)
+                        used_ids.append(record.id)
+                    elif record.id in used_ids:
+                        print(f"duplicate sequence with header {record.id} ignored")
+                    else:
+                        print(f"no sequence with header {record.id} found")
+
 def create_fasta() -> None:
     """takes the xml outputs of run_blast(), concatinates the sequences into fastas, then concatentates the fastas into one overall fasta for alignment
     """
 
-    # for each blast output xml
+    # for each blast output xml, get the names of sequences that had hsps (really inefficient probably)
+    seq_ids = set()
     blastout = f"{os.getcwd()}/blastout"
     for entry in os.scandir(blastout):
         if entry.is_file() and entry.name.endswith("_blastout"):
-            with open(entry.path, "r") as xml_handle:
-                for record in NCBIXML.parse(xml_handle):
-                    for hit in record:
-                        print(hit)
+            for qresult in SearchIO.read(entry.path, "blast-xml"):
+                seq_ids.add(qresult.id)
+    find_fastas(seq_ids)
+            # with open(entry.path, "r") as xml_handle:
+            #     for record in NCBIXML.parse(xml_handle):
+            #         for alignment in record.alignments:
+            #             for hsp in alignment.hsps:
+            #                 print(alignment.title.split(" ")[0])
+            #                 print(alignment.length)
+            #                 print(hsp.strand)
 
 
 
@@ -164,6 +195,6 @@ parser.add_argument("-threads", type=int, default=1, help="number of threads sub
 
 args = parser.parse_args()
 
-#run_make_blast_database(args.fastas, args.ftype)
-#run_blast(args.q, args.qtype, args.ftype, args.threads, args.max_targets)
+run_make_blast_database(args.fastas, args.ftype)
+run_blast(args.q, args.qtype, args.ftype, args.threads, args.max_targets)
 create_fasta()
