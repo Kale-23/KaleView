@@ -173,9 +173,30 @@ def create_fasta() -> None:
             #                 print(hsp.strand)
 
 
+def run_macse(macse_location: str) -> None:
+    """uses output of create_fasta() to create initial alignment of sequences
 
-def run_macse():
-    return
+    Args:
+        macse_location (str): location of macse jar file
+    """
+    
+    macse_cmd = f"java -jar {macse_location} -prog alignSequences -seq alignment_seqs.fasta -out_NT alignment_NT_withFS.fasta -out_AA alignment_AA_withFS.fasta"
+    subprocess.run(macse_cmd.split(" "))
+
+    # run this first to have stats before macse removes frameshifts and stop codons for use in tree creation
+    macse_info_cmd = f"java -jar {macse_location} -prog exportAlignment -align alignment_NT_withFS -out_stat_per_seq alignment_seq_stats.csv -out_stat_per_site alignment_frequencies_stats.csv"
+    subprocess.run(macse_info_cmd.split(" "))
+
+    # run this second, reason above
+    macse_export_cmd = f"java -jar {macse_location} -prog exportAlignment -align alignment_NT_withFS.fasta -codonForInternalStop NNN -codonForInternalFS - -charForRemainingFS - -out_NT alignment_NT_NoFS.fasta -out_AA alignment_AA_NoFS.fasta -"
+    subprocess.run(macse_export_cmd.split(" "))
+
+    # create alignment directory and move all macse files into it
+    alignment = f"{os.getcwd()}/alignment"
+    os.makedirs(alignment, exist_ok=True)
+    for entry in os.scandir(os.getcwd()):
+        if entry.is_file() and entry.name.startswith("alignment"):
+            os.rename(entry.path, f"{alignment}/{entry.name}")
 
 def run_IQ_tree():
     return
@@ -190,6 +211,7 @@ parser.add_argument("-qtype",required=True, choices=FASTA_TYPES, type=str, help=
 parser.add_argument("-fastas", required=True, type=str, help="directory location of fasta file(s)")
 parser.add_argument("-ftype", required=True, type=str, choices=FASTA_TYPES, help="database fasta type (prot, nucl)")
 parser.add_argument("-max_targets", type=int, default=10, help="max number of target seqs while running blast")
+parser.add_argument("-a", "-alignemnt", type=str, help="location of macse jar file, if not given, script will stop after blast output")
 
 parser.add_argument("-threads", type=int, default=1, help="number of threads subprocesses can use")
 #parser.add_argument("-mem", type=str, default="1000000", help="memory subprograms are allowed to use")
@@ -197,5 +219,8 @@ parser.add_argument("-threads", type=int, default=1, help="number of threads sub
 args = parser.parse_args()
 
 #run_make_blast_database(args.fastas, args.ftype)
-run_blast(args.q, args.qtype, args.ftype, args.threads, args.max_targets)
-create_fasta()
+#run_blast(args.q, args.qtype, args.ftype, args.threads, args.max_targets)
+#create_fasta()
+if args.a is not None:
+    run_macse(args.a)
+
