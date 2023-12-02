@@ -1,8 +1,9 @@
 # Personal
 .DS_Store
-testing
-env
+testing/
 blastdb/
 blastout/
 fastas/
+tree/
+alignment/
 ES_alpha_slime.fasta

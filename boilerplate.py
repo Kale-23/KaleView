@@ -67,11 +67,16 @@ def _define_layout() -> ptg.Layout:
     layout.add_break()
 
     # A body slot that will fill the entire width, and the height is remaining
-    layout.add_slot("Body")
+    layout.add_slot("Body", height=0.6)
 
-    # A slot in the same row as body, using the full non-occupied height and
-    # 20% of the terminal's height.
-    layout.add_slot("Body right", width=0.2)
+    #    # A slot in the same row as body, using the full non-occupied height and
+    #    # 20% of the terminal's height.
+    #    layout.add_slot("Body right", width=0.2)
+    
+    layout.add_break()
+
+    layout.add_slot("table", height=0.4)
+    layout.add_slot("table2", width=0.4, height=0.4)
 
     layout.add_break()
 
@@ -106,8 +111,9 @@ def main(argv: list[str] | None = None) -> None:
         # to "footer"
         manager.add(footer, assign="footer")
 
-        manager.add(ptg.Window("My sidebar"), assign="body_right")
         manager.add(ptg.Window("My body window"), assign="body")
+        manager.add(ptg.Window("My sidebar"), assign="table")
+        manager.add(ptg.Window("My table"), assign="table2")
 
     ptg.tim.print("[!gradient(210)]Goodbye!")
 

@@ -1,4 +1,5 @@
-#! /usr/bin/env python3
+#!/usr/bin/env python3
+
 import os
 import argparse
 import subprocess
@@ -181,14 +182,14 @@ def run_macse(macse_location: str) -> None:
     """
     
     macse_cmd = f"java -jar {macse_location} -prog alignSequences -seq alignment_seqs.fasta -out_NT alignment_NT_withFS.fasta -out_AA alignment_AA_withFS.fasta"
-    subprocess.run(macse_cmd.split(" "))
+    #subprocess.run(macse_cmd.split(" "))
 
     # run this first to have stats before macse removes frameshifts and stop codons for use in tree creation
-    macse_info_cmd = f"java -jar {macse_location} -prog exportAlignment -align alignment_NT_withFS -out_stat_per_seq alignment_seq_stats.csv -out_stat_per_site alignment_frequencies_stats.csv"
+    macse_info_cmd = f"java -jar {macse_location} -prog exportAlignment -align alignment_NT_withFS.fasta -out_stat_per_seq alignment_seq_stats.csv -out_stat_per_site alignment_frequencies_stats.csv"
     subprocess.run(macse_info_cmd.split(" "))
 
     # run this second, reason above
-    macse_export_cmd = f"java -jar {macse_location} -prog exportAlignment -align alignment_NT_withFS.fasta -codonForInternalStop NNN -codonForInternalFS - -charForRemainingFS - -out_NT alignment_NT_NoFS.fasta -out_AA alignment_AA_NoFS.fasta -"
+    macse_export_cmd = f"java -jar {macse_location} -prog exportAlignment -align alignment_NT_withFS.fasta -codonForInternalStop NNN -codonForInternalFS --- -charForRemainingFS - -out_NT alignment_NT_NoFS.fasta -out_AA alignment_AA_NoFS.fasta"
     subprocess.run(macse_export_cmd.split(" "))
 
     # create alignment directory and move all macse files into it
@@ -198,8 +199,16 @@ def run_macse(macse_location: str) -> None:
         if entry.is_file() and entry.name.startswith("alignment"):
             os.rename(entry.path, f"{alignment}/{entry.name}")
 
-def run_IQ_tree():
-    return
+def run_IQ_tree(threads: int) -> None:
+    #    IQ_tree_cmd = f"iqtree -s {os.getcwd()}/alignment/alignment_NT_NoFS.fasta -m GTR -alrt 1000 -nt {threads} -redo"
+    #    subprocess.run(IQ_tree_cmd.split(" "))
+
+    tree = f"{os.getcwd()}/tree"
+    os.makedirs(tree, exist_ok=True)
+    for entry in os.scandir(f"{os.getcwd()}/alignment"):
+        print(entry.name)
+        if entry.is_file() and not entry.name.endswith((".fasta", ".csv")):
+            os.rename(entry.path, f"{tree}/{entry.name}")
 
 ### Running the code ###
 
@@ -221,6 +230,6 @@ args = parser.parse_args()
 #run_make_blast_database(args.fastas, args.ftype)
 #run_blast(args.q, args.qtype, args.ftype, args.threads, args.max_targets)
 #create_fasta()
-if args.a is not None:
-    run_macse(args.a)
-
+#if args.a is not None:
+#    run_macse(args.a)
+run_IQ_tree(args.threads)
