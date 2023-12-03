@@ -63,7 +63,7 @@ def _define_layout() -> ptg.Layout:
     layout = ptg.Layout()
 
     # A header slot with a height of 1
-    layout.add_slot("Header", height=1)
+    layout.add_slot("Header", height=0.05)
     layout.add_break()
 
     # A body slot that will fill the entire width, and the height is remaining
@@ -75,13 +75,13 @@ def _define_layout() -> ptg.Layout:
     
     layout.add_break()
 
-    layout.add_slot("table", height=0.4)
-    layout.add_slot("table2", width=0.4, height=0.4)
+    layout.add_slot("table", height=0.3)
+    layout.add_slot("table2", width=0.4, height=0.3)
 
     layout.add_break()
 
     # A footer with a static height of 1
-    layout.add_slot("Footer", height=1)
+    layout.add_slot("Footer", height=0.05)
 
     return layout
 
@@ -98,7 +98,7 @@ def main(argv: list[str] | None = None) -> None:
         manager.layout = _define_layout()
 
         header = ptg.Window(
-            "[app.header] Welcome to PyTermGUI ",
+            "Tree Viewer",
             box="EMPTY",
         )
 
@@ -111,7 +111,7 @@ def main(argv: list[str] | None = None) -> None:
         # to "footer"
         manager.add(footer, assign="footer")
 
-        manager.add(ptg.Window("My body window"), assign="body")
+        manager.add(ptg.Window("My body window").set_title("Tree"), assign="body")
         manager.add(ptg.Window("My sidebar"), assign="table")
         manager.add(ptg.Window("My table"), assign="table2")
 
