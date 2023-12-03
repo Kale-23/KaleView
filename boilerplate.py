@@ -4,8 +4,131 @@ from __future__ import annotations
 
 import sys
 from argparse import ArgumentParser, Namespace
+from typing import Any, Callable, Iterable, Type
 
 import pytermgui as ptg
+
+import viz
+
+
+class AppWindow(ptg.Window):
+    """A generic application window.
+
+    It contains a header with the app's title, as well as some global
+    settings.
+    """
+
+    app_title: str
+    """The display title of the application."""
+
+    app_id: str
+    """The short identifier used by ArgumentParser."""
+
+    standalone: bool
+    """Whether this app was launched directly from the CLI."""
+
+    overflow = ptg.Overflow.SCROLL
+    vertical_align = ptg.VerticalAlignment.TOP
+
+    def __init__(self, args: Namespace | None = None, **attrs: Any) -> None:
+        super().__init__(**attrs)
+
+        self.standalone = bool(getattr(args, self.app_id, None))
+
+        bottom = ptg.Container.chars["border"][-1]
+        header_box = ptg.boxes.Box(
+            [
+                "",
+                " x ",
+                "",
+            ]
+        )
+
+        self._add_widget(ptg.Container(f"[ptg.title]{self.app_title}", box=header_box))
+        #self._add_widget("")
+
+    # def setup(self) -> None:
+    #     """Centers window, sets its width & height."""
+
+    #     self.width = int(self.terminal.width * 2 / 3)
+    #     self.height = int(self.terminal.height * 2 / 3)
+    #     self.center(store=False)
+
+    # def on_exit(self) -> None:
+    #     """Called on application exit.
+
+    #     Should be used to print current application state to the user's shell.
+    #     """
+
+    #     ptg.tim.print(f"{_title()} - [dim]{self.app_title}")
+    #     print()
+
+
+
+class Input_Updater(AppWindow):
+
+    app_title = "Tip Input"
+
+    app_id = "input"
+
+    def __init__(self, args: Namespace | None = None, **attrs: Any) -> None:
+        super().__init__(args, **attrs)
+
+        self._input = ptg.InputField("Example_1234", prompt="Tip Name: ")
+        self._input.bind(ptg.keys.CARRIAGE_RETURN, lambda*_: update_stuff(self.manager, self._input.value))
+
+        self._content = ptg.Container(self._input)
+        self._add_widget(
+            self._content
+        )
+    
+    def _update(self):
+
+        self._content.set_widgets([])
+
+        item = ptg.InputField("", prompt="Tip Name: ")
+        item.bind(ptg.keys.CARRIAGE_RETURN, lambda*_: update_stuff(self.manager, item.value))
+
+        self._content.set_widgets(ptg.Container(item))
+
+class TreeWindow(AppWindow):
+
+    app_title = "Tree View"
+
+    app_id = "tree"
+
+    def __init__(self, args: Namespace | None = None, **attrs: Any) -> None:
+        super().__init__(args, **attrs)
+
+        self._content = viz.gui_ize()
+
+        self._add_widget(self._content)
+
+class AlignmentView(AppWindow):
+
+    app_title = "Alignment Viewer"
+
+    app_id = "alignment"
+
+    def __init__(self, args: Namespace | None = None, **attrs: Any) -> None:
+        super().__init__(args, **attrs)
+
+        self._content = ptg.Label("Alignment")
+
+        self._add_widget(self._content)
+
+class BlastView(AppWindow):
+
+    app_title = "Blast Viewer"
+
+    app_id = "blast"
+
+    def __init__(self, args: Namespace | None = None, **attrs: Any) -> None:
+        super().__init__(args, **attrs)
+
+        self._content = ptg.Label("Blast")
+
+        self._add_widget(self._content)
 
 
 def _process_arguments(argv: list[str] | None = None) -> Namespace:
@@ -19,7 +142,7 @@ def _process_arguments(argv: list[str] | None = None) -> Namespace:
             (sys.argv[0]).
     """
 
-    parser = ArgumentParser(description="My first PTG application.")
+    parser = ArgumentParser(description="KaleViewer")
 
     return parser.parse_args(argv)
 
@@ -36,6 +159,8 @@ def _create_aliases() -> None:
         myapp.title
     """
 
+    ptg.tim.alias("ptg.title", "secondary bold")
+
 
 def _configure_widgets() -> None:
     """Defines all the global widget configurations.
@@ -47,6 +172,7 @@ def _configure_widgets() -> None:
         ptg.Button.styles.label = "myapp.button.label"
         ptg.Container.styles.border__corner = "myapp.border"
     """
+    ptg.Splitter.set_char("separator", "")
 
     ptg.boxes.SINGLE.set_chars_of(ptg.Window)
 
@@ -62,28 +188,28 @@ def _define_layout() -> ptg.Layout:
 
     layout = ptg.Layout()
 
-    # A header slot with a height of 1
-    layout.add_slot("Header", height=0.05)
+    layout.add_slot("Header", height=0.1)
+    # layout.add_break()
+    # layout.add_slot("Input", height=0.05)
     layout.add_break()
 
-    # A body slot that will fill the entire width, and the height is remaining
     layout.add_slot("Body", height=0.6)
-
-    #    # A slot in the same row as body, using the full non-occupied height and
-    #    # 20% of the terminal's height.
-    #    layout.add_slot("Body right", width=0.2)
-    
     layout.add_break()
-
-    layout.add_slot("table", height=0.3)
-    layout.add_slot("table2", width=0.4, height=0.3)
+    layout.add_slot("LowRight", height=0.25, width=0.6)
+    layout.add_slot("lowLeft", height=0.25, width=0.4)
 
     layout.add_break()
 
-    # A footer with a static height of 1
     layout.add_slot("Footer", height=0.05)
 
     return layout
+
+def update_stuff(manager: ptg.WindowManager, value: str) -> None:
+    for item in manager:
+
+        if isinstance(item, Input_Updater):
+            if item.app_id == "input":
+                item._update()
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -103,20 +229,30 @@ def main(argv: list[str] | None = None) -> None:
         )
 
         # Since header is the first defined slot, this will assign to the correct place
-        manager.add(header)
+        manager.add(Input_Updater())
 
-        footer = ptg.Window(ptg.Button("Quit", lambda *_: manager.stop()), box="EMPTY")
+        footer = ptg.Window(ptg.Button("<O-Q>: Quit", lambda *_: manager.stop()), box="EMPTY")
 
         # Since the second slot, body was not assigned to, we need to manually assign
         # to "footer"
         manager.add(footer, assign="footer")
+        manager.add(TreeWindow(), assign="body")
+        manager.add(AlignmentView(), assign="lowright")
+        manager.add(BlastView(), assign="lowleft")
 
-        manager.add(ptg.Window("My body window").set_title("Tree"), assign="body")
-        manager.add(ptg.Window("My sidebar"), assign="table")
-        manager.add(ptg.Window("My table"), assign="table2")
+        manager.bind(
+            "\u0153", # option Q
+            lambda *_: (manager.stop()),
+            "Close window",
+        )
+
+        manager.bind(
+            "r",
+            lambda*_: (update_stuff(manager)),
+            "stuff"
+        )
 
     ptg.tim.print("[!gradient(210)]Goodbye!")
-
 
 if __name__ == "__main__":
     main(sys.argv[1:])

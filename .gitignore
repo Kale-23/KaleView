@@ -7,3 +7,7 @@ fastas/
 tree/
 alignment/
 ES_alpha_slime.fasta
+.screenshot_temp.svg
+__pycache__/viz.cpython-312.pyc
+krm.py
+test.py
