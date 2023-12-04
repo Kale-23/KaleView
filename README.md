@@ -1,1 +1,3 @@
-# Bioinformatics_Final
+# KaleView
+
+### a phylogenetic tree viewer that can show blast and alignment stats of branch tip sequences
