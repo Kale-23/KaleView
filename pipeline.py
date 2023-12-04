@@ -1,13 +1,15 @@
-#!/usr/bin/env python3
+#! /usr/bin/env python3
 
 import os
 import argparse
 import subprocess
-from typing import Union
+import sys
 
-from Bio.Blast import NCBIXML
 from Bio import SearchIO
 from Bio import SeqIO
+
+from typing import Union, List, Set, Tuple
+
 
 # valid fasta endings
 FASTA_ENDS = (".fasta",".fa",".fas")
@@ -84,7 +86,6 @@ def run_blast(query: str, qtype: str, ftype: str, threads: int, maxseqs: int) ->
     # determine blast type to use (blastn, blastp, blastx, tblastn)
     blast_type= ""
 
-    # python 3.10+ and I don't feel like dealing with environments
     #types = (qtype, ftype)
     #match types:
     #    case ("nucl", "nucl"):
@@ -128,17 +129,18 @@ def run_blast(query: str, qtype: str, ftype: str, threads: int, maxseqs: int) ->
         if entry.is_file() and entry.name.endswith("_blastout"):
             os.rename(entry.path, f"{blastout}/{entry.name}")
 
-def find_fastas(ids: Union[list[str], set[str], tuple[str]]) -> None:
+def find_fastas(ids: Union[List[str], Set[str], Tuple[str]], loc: str) -> None:
     """takes in a collection of sequence headers, and generates a new fasta file with all sequences associated with the headers
 
     Args:
         ids (Union[list[str], set[str], tuple[str]]): collection of sequence headers
+        loc (str): location of fastas
     """
 
     unused_ids = list(ids)
     used_ids = []
     with open("alignment_seqs.fasta", "w") as fasta_out:
-        for entry in os.scandir(args.fastas):
+        for entry in os.scandir(loc):
                 if not entry.is_file() or not entry.name.endswith(FASTA_ENDS):
                             continue
                 for record in SeqIO.parse(entry.path, "fasta"):
@@ -153,8 +155,11 @@ def find_fastas(ids: Union[list[str], set[str], tuple[str]]) -> None:
         for item in used_ids:
             print(f"No sequence found for header {item}")
 
-def create_fasta() -> None:
+def create_fasta(loc: str) -> None:
     """takes the xml outputs of run_blast(), concatinates the sequences into fastas, then concatentates the fastas into one overall fasta for alignment
+
+    Args:
+        loc (str): location of fastas
     """
 
     # for each blast output xml, get the names of sequences that had hsps (really inefficient probably)
@@ -164,15 +169,7 @@ def create_fasta() -> None:
         if entry.is_file() and entry.name.endswith("_blastout"):
             for qresult in SearchIO.read(entry.path, "blast-xml"):
                 seq_ids.add(qresult.id)
-    find_fastas(seq_ids)
-            # with open(entry.path, "r") as xml_handle:
-            #     for record in NCBIXML.parse(xml_handle):
-            #         for alignment in record.alignments:
-            #             for hsp in alignment.hsps:
-            #                 print(alignment.title.split(" ")[0])
-            #                 print(alignment.length)
-            #                 print(hsp.strand)
-
+    find_fastas(seq_ids, loc)
 
 def run_macse(macse_location: str) -> None:
     """uses output of create_fasta() to create initial alignment of sequences
@@ -182,14 +179,14 @@ def run_macse(macse_location: str) -> None:
     """
     
     macse_cmd = f"java -jar {macse_location} -prog alignSequences -seq alignment_seqs.fasta -out_NT alignment_NT_withFS.fasta -out_AA alignment_AA_withFS.fasta"
-    #subprocess.run(macse_cmd.split(" "))
+    subprocess.run(macse_cmd.split(" "))
 
     # run this first to have stats before macse removes frameshifts and stop codons for use in tree creation
-    macse_info_cmd = f"java -jar {macse_location} -prog exportAlignment -align alignment_NT_withFS.fasta -out_stat_per_seq alignment_seq_stats.csv -out_stat_per_site alignment_frequencies_stats.csv"
+    macse_info_cmd = f"java -jar {macse_location} -prog exportAlignment -align alignment_NT_withFS -out_stat_per_seq alignment_seq_stats.csv -out_stat_per_site alignment_frequencies_stats.csv"
     subprocess.run(macse_info_cmd.split(" "))
 
     # run this second, reason above
-    macse_export_cmd = f"java -jar {macse_location} -prog exportAlignment -align alignment_NT_withFS.fasta -codonForInternalStop NNN -codonForInternalFS --- -charForRemainingFS - -out_NT alignment_NT_NoFS.fasta -out_AA alignment_AA_NoFS.fasta"
+    macse_export_cmd = f"java -jar {macse_location} -prog exportAlignment -align alignment_NT_withFS.fasta -codonForInternalStop NNN -codonForInternalFS - -charForRemainingFS - -out_NT alignment_NT_NoFS.fasta -out_AA alignment_AA_NoFS.fasta -"
     subprocess.run(macse_export_cmd.split(" "))
 
     # create alignment directory and move all macse files into it
@@ -199,10 +196,17 @@ def run_macse(macse_location: str) -> None:
         if entry.is_file() and entry.name.startswith("alignment"):
             os.rename(entry.path, f"{alignment}/{entry.name}")
 
-def run_IQ_tree(threads: int) -> None:
-    #    IQ_tree_cmd = f"iqtree -s {os.getcwd()}/alignment/alignment_NT_NoFS.fasta -m GTR -alrt 1000 -nt {threads} -redo"
-    #    subprocess.run(IQ_tree_cmd.split(" "))
+def run_IQ_tree(threads: str) -> None:
+    """runs the iqtree command
 
+    Args:
+        threads (str): number of strings to allow iqtree to use
+    """
+    # creates and runs the iqtree command
+    IQ_tree_cmd = f"iqtree -s {os.getcwd()}/alignment/alignment_NT_NoFS.fasta -m GTR -alrt 1000 -nt {threads} -redo"
+    subprocess.run(IQ_tree_cmd.split(" "))
+
+    # creates tree directory and moves all files generated from the iqtree program there
     tree = f"{os.getcwd()}/tree"
     os.makedirs(tree, exist_ok=True)
     for entry in os.scandir(f"{os.getcwd()}/alignment"):
@@ -210,26 +214,37 @@ def run_IQ_tree(threads: int) -> None:
         if entry.is_file() and not entry.name.endswith((".fasta", ".csv")):
             os.rename(entry.path, f"{tree}/{entry.name}")
 
-### Running the code ###
 
-# setting up arguments
-parser = argparse.ArgumentParser(description="pipeline script to take query sequence and fastas, and create blast database, blasts the sequences, aligns output, and creates tree")
+def process_args(argv: list[str] | None = None) -> argparse.Namespace:
+    """processes command line arguments using argparse
 
-parser.add_argument("-q", required=True, type=str, help="query sequence")
-parser.add_argument("-qtype",required=True, choices=FASTA_TYPES, type=str, help="querry sequence type (prot, nucl)")
-parser.add_argument("-fastas", required=True, type=str, help="directory location of fasta file(s)")
-parser.add_argument("-ftype", required=True, type=str, choices=FASTA_TYPES, help="database fasta type (prot, nucl)")
-parser.add_argument("-max_targets", type=int, default=10, help="max number of target seqs while running blast")
-parser.add_argument("-a", "-alignemnt", type=str, help="location of macse jar file, if not given, script will stop after blast output")
+    Args:
+        argv (list[str] | None, optional): list of arguments from commandline. Defaults to None.
 
-parser.add_argument("-threads", type=int, default=1, help="number of threads subprocesses can use")
-#parser.add_argument("-mem", type=str, default="1000000", help="memory subprograms are allowed to use")
+    Returns:
+        argparse.Namespace: argparse arguments
+    """
+    parser = argparse.ArgumentParser(description="pipeline script to take query sequence and fastas, and create blast database, blasts the sequences, aligns output, and creates tree")
+    parser.add_argument("-q", required=True, type=str, help="query sequence")
+    parser.add_argument("-qtype",required=True, choices=FASTA_TYPES, type=str, help="querry sequence type (prot, nucl)")
+    parser.add_argument("-fastas", required=True, type=str, help="directory location of fasta file(s)")
+    parser.add_argument("-ftype", required=True, type=str, choices=FASTA_TYPES, help="database fasta type (prot, nucl)")
+    parser.add_argument("-max_targets", type=int, default=10, help="max number of target seqs while running blast")
+    parser.add_argument("-a", "-alignemnt", type=str, help="location of macse jar file, if not given, script will stop after blast output")
+    parser.add_argument("-t", "-threads", type=int, default=1, help="number of threads to allow subprocesses to use")
+    argv = argv or sys.argv[1:]
+    args = parser.parse_args(args=argv)
+    return args
 
-args = parser.parse_args()
+def main(argv: list[str] | None = None) -> None:
+    args = process_args(argv)
 
-#run_make_blast_database(args.fastas, args.ftype)
-#run_blast(args.q, args.qtype, args.ftype, args.threads, args.max_targets)
-#create_fasta()
-#if args.a is not None:
-#    run_macse(args.a)
-run_IQ_tree(args.threads)
+    run_make_blast_database(args.fastas, args.ftype)
+    run_blast(args.q, args.qtype, args.ftype, args.threads, args.max_targets)
+    create_fasta(args.fastas)
+    if args.a is not None:
+        run_macse(args.a)
+        run_IQ_tree(args.t)
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

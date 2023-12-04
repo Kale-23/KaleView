@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import sys
 from argparse import ArgumentParser, Namespace
+import time
 from typing import Any, Callable, Iterable, Type
 
 import pytermgui as ptg
@@ -24,7 +25,7 @@ class AppWindow(ptg.Window):
     app_id: str
     """The short identifier used by ArgumentParser."""
 
-    standalone: bool
+    #standalone: bool
     """Whether this app was launched directly from the CLI."""
 
     overflow = ptg.Overflow.SCROLL
@@ -33,9 +34,9 @@ class AppWindow(ptg.Window):
     def __init__(self, args: Namespace | None = None, **attrs: Any) -> None:
         super().__init__(**attrs)
 
-        self.standalone = bool(getattr(args, self.app_id, None))
+        #TODO maybe implement this for standalone imput of tip names and direct cmdline output of data
+        #self.standalone = bool(getattr(args, self.app_id, None))
 
-        bottom = ptg.Container.chars["border"][-1]
         header_box = ptg.boxes.Box(
             [
                 "",
@@ -45,56 +46,39 @@ class AppWindow(ptg.Window):
         )
 
         self._add_widget(ptg.Container(f"[ptg.title]{self.app_title}", box=header_box))
-        #self._add_widget("")
 
-    # def setup(self) -> None:
-    #     """Centers window, sets its width & height."""
-
-    #     self.width = int(self.terminal.width * 2 / 3)
-    #     self.height = int(self.terminal.height * 2 / 3)
-    #     self.center(store=False)
-
-    # def on_exit(self) -> None:
-    #     """Called on application exit.
-
-    #     Should be used to print current application state to the user's shell.
-    #     """
-
-    #     ptg.tim.print(f"{_title()} - [dim]{self.app_title}")
-    #     print()
-
-
+    def _update(self, *_: Any):
+        """updates window contents after a condition is met"""
+        return
 
 class Input_Updater(AppWindow):
+    """A window for users to input tree tip names"""
 
     app_title = "Tip Input"
-
     app_id = "input"
 
     def __init__(self, args: Namespace | None = None, **attrs: Any) -> None:
         super().__init__(args, **attrs)
 
         self._input = ptg.InputField("Example_1234", prompt="Tip Name: ")
-        self._input.bind(ptg.keys.CARRIAGE_RETURN, lambda*_: update_stuff(self.manager, self._input.value))
+        self._input.bind(ptg.keys.CARRIAGE_RETURN, lambda*_: updater(self.manager, self._input.value))
 
         self._content = ptg.Container(self._input)
-        self._add_widget(
-            self._content
-        )
-    
-    def _update(self):
+        self._add_widget(self._content)
 
+    def _update(self, *_: Any) -> None:
+        """On update, empties InputField to accept new input"""
         self._content.set_widgets([])
 
         item = ptg.InputField("", prompt="Tip Name: ")
-        item.bind(ptg.keys.CARRIAGE_RETURN, lambda*_: update_stuff(self.manager, item.value))
+        item.bind(ptg.keys.CARRIAGE_RETURN, lambda*_: updater(self.manager, item.value))
 
         self._content.set_widgets(ptg.Container(item))
 
 class TreeWindow(AppWindow):
+    """A window to show ascii phylogenetic tree output"""
 
     app_title = "Tree View"
-
     app_id = "tree"
 
     def __init__(self, args: Namespace | None = None, **attrs: Any) -> None:
@@ -105,47 +89,69 @@ class TreeWindow(AppWindow):
         self._add_widget(self._content)
 
 class AlignmentView(AppWindow):
+    """A window to show alignment statistics of selected tip sequence"""
 
     app_title = "Alignment Viewer"
-
     app_id = "alignment"
 
     def __init__(self, args: Namespace | None = None, **attrs: Any) -> None:
         super().__init__(args, **attrs)
 
-        self._content = ptg.Label("Alignment")
+        self._content = ptg.Container(ptg.Label("Input tip name to show alignment stats"))
 
         self._add_widget(self._content)
+
+    def _update(self, id: str) -> None:
+        """updates window to show newly input tip alignment statistics
+
+        Args:
+            id (str): tip name
+        """
+        self._content.set_widgets([])
+
+        item = viz.out_alignment_stats(id)
+
+        self._content.set_widgets(item)
 
 class BlastView(AppWindow):
 
     app_title = "Blast Viewer"
-
     app_id = "blast"
 
     def __init__(self, args: Namespace | None = None, **attrs: Any) -> None:
         super().__init__(args, **attrs)
 
-        self._content = ptg.Label("Blast")
+        self._content = ptg.Container(ptg.Label("Input tip name to show blast stats"))
 
         self._add_widget(self._content)
 
+    def _update(self, value: str) -> None:
+        """updates window to show newly input tip blast statistics
 
-def _process_arguments(argv: list[str] | None = None) -> Namespace:
-    """Processes command line arguments.
+        Args:
+            value (str): tip name
+        """
+        self._content.set_widgets([])
 
-    Note that you don't _have to_ use the bultin argparse module for this; it
-    is just what the module uses.
+        item = viz.blast_table(value)
 
-    Args:
-        argv: A list of command line arguments, not including the binary path
-            (sys.argv[0]).
-    """
+        self._content.set_widgets(item)
 
-    parser = ArgumentParser(description="KaleViewer")
+#TODO use this to do standalone windows
+# def _process_arguments(argv: list[str] | None = None) -> Namespace:
+#     """Processes command line arguments.
 
-    return parser.parse_args(argv)
+#     Note that you don't _have to_ use the bultin argparse module for this; it
+#     is just what the module uses.
 
+#     Args:
+#         argv: A list of command line arguments, not including the binary path
+#             (sys.argv[0]).
+#     """
+
+#     parser = ArgumentParser(description="KaleViewer")
+
+#     return parser.parse_args(argv)
 
 def _create_aliases() -> None:
     """Creates all the TIM aliases used by the application.
@@ -160,6 +166,7 @@ def _create_aliases() -> None:
     """
 
     ptg.tim.alias("ptg.title", "secondary bold")
+    ptg.tim.alias("ptg.alert", "red bold")
 
 
 def _configure_widgets() -> None:
@@ -173,7 +180,6 @@ def _configure_widgets() -> None:
         ptg.Container.styles.border__corner = "myapp.border"
     """
     ptg.Splitter.set_char("separator", "")
-
     ptg.boxes.SINGLE.set_chars_of(ptg.Window)
 
 
@@ -185,31 +191,48 @@ def _define_layout() -> ptg.Layout:
     values will be used to "scale" the relevant terminal dimension, and giving nothing
     will allow PTG to calculate the corrent dimension.
     """
-
     layout = ptg.Layout()
 
     layout.add_slot("Header", height=0.1)
-    # layout.add_break()
-    # layout.add_slot("Input", height=0.05)
     layout.add_break()
 
     layout.add_slot("Body", height=0.6)
     layout.add_break()
-    layout.add_slot("LowRight", height=0.25, width=0.6)
-    layout.add_slot("lowLeft", height=0.25, width=0.4)
 
+    layout.add_slot("LowRight", height=0.25, width=0.5)
+    layout.add_slot("lowLeft", height=0.25, width=0.5)
     layout.add_break()
 
     layout.add_slot("Footer", height=0.05)
 
     return layout
 
-def update_stuff(manager: ptg.WindowManager, value: str) -> None:
-    for item in manager:
+def tip_not_found(man: ptg.WindowManager) -> None:
+    """Opens a modal dialogue to warn user that input value was not found"""
 
-        if isinstance(item, Input_Updater):
-            if item.app_id == "input":
-                item._update()
+    modal = man.alert( "[ptg.alert]Seqence Not Found!", "", center=True)
+
+    time.sleep(2)
+
+    man.remove(modal)
+
+def updater(manager: ptg.WindowManager, value: str) -> None:
+    """used to check input and update all windows on valid input
+
+    Args:
+        manager (ptg.WindowManager): current window manager
+        value (str): user input tip name
+    """
+
+    # checks if input value is in alignment
+    if not viz.header_found(value):
+        tip_not_found(manager)
+        return
+    
+    # updates all windows
+    for item in manager:
+        if isinstance(item, AppWindow):
+            item._update(value)
 
 
 def main(argv: list[str] | None = None) -> None:
@@ -218,15 +241,10 @@ def main(argv: list[str] | None = None) -> None:
     _create_aliases()
     _configure_widgets()
 
-    args = _process_arguments(argv)
+    #args = _process_arguments(argv)
 
     with ptg.WindowManager() as manager:
         manager.layout = _define_layout()
-
-        header = ptg.Window(
-            "Tree Viewer",
-            box="EMPTY",
-        )
 
         # Since header is the first defined slot, this will assign to the correct place
         manager.add(Input_Updater())
@@ -244,12 +262,6 @@ def main(argv: list[str] | None = None) -> None:
             "\u0153", # option Q
             lambda *_: (manager.stop()),
             "Close window",
-        )
-
-        manager.bind(
-            "r",
-            lambda*_: (update_stuff(manager)),
-            "stuff"
         )
 
     ptg.tim.print("[!gradient(210)]Goodbye!")
