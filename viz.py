@@ -21,7 +21,7 @@ def out_phylo() -> str:
     # catches the stdout ascii tree and stores as string
     f = io.StringIO()
     with contextlib.redirect_stdout(f):
-        Phylo.draw_ascii(tree)
+        Phylo.draw_ascii(tree, column_width=200)
     output = f.getvalue()
     return output
 

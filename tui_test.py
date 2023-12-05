@@ -1,8 +1,6 @@
 #! /usr/bin/env python3
 import pytermgui as ptg
 
-
-
 def butt(manager: ptg.WindowManager, window: ptg.Window) -> None:
     for widget in window:
         if isinstance(widget, ptg.Container):
