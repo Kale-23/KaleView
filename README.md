@@ -1,6 +1,6 @@
 # KaleView
 
-### A Phylogenetic Tree Viewer in the Terminal
+### A Phylogenetic Tree Viewer/ Results Dashboard in the Terminal
 
 ### Shows:
 - a phylogenetic tree
