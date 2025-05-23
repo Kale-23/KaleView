@@ -8,8 +8,10 @@
 - alignment stats of branch tip sequences
 
 ### Instructions
-- to run the visualization program, run KaleView.py from the example_files directory
-- to view final presentation, go [here](./helper_files/Bioinformatics_Final_Presentation.pptx)
+- to run the pipeline as setup for the visualizations, run `pipeline.py`
+- to run the visualization program, run `KaleView.py`
+  - you can run an example fileset by using the files [here](./example_files)
+- to view final presentation of the project, go [here](./helper_files/Bioinformatics_Final_Presentation.pptx)
 
 ### Example Image
 ![Example Image](./assets/kaleview_example.png)
