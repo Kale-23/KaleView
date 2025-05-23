@@ -4,4 +4,4 @@
 
 - to run the visualization program, run KaleView.py from the example_files directory
 
-- to view final presentation, go [here](Bioinformatics_Final_Presentation.pptx)
+- to view final presentation, go [here](./helper_files/Bioinformatics_Final_Presentation.pptx)
